@@ -1,0 +1,86 @@
+# Create a new directory for your project
+mkdir property_management
+cd property_management
+
+# Create a virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On Unix or MacOS:
+source venv/bin/activate
+
+# Install required packages
+pip install django djangorestframework django-cors-headers Pillow 
+
+django-admin startproject backend
+cd backend
+python manage.py startapp properties 
+python manage.py makemigrations
+python manage.py migrate 
+python manage.py createsuperuser 
+python manage.py runserver 
+
+# Make sure you're in the backend directory
+cd backend
+
+# List all files and directories
+ls
+
+# List files in the properties app
+ls properties/
+
+# Check if serializers.py exists
+ls properties/serializers.py 2>/dev/null || echo "serializers.py does not exist" 
+
+# Remove the database and migrations to start fresh
+rm db.sqlite3
+rm properties/migrations/0*.py
+
+# Create fresh migrations
+python manage.py makemigrations
+
+# Create migrations for the token authentication
+python manage.py makemigrations rest_framework.authtoken
+
+# Apply all migrations
+python manage.py migrate
+
+# Create a superuser
+python manage.py createsuperuser
+
+# Create React app with Vite
+npm create vite@latest frontend -- --template react
+
+# Navigate to the frontend directory
+cd frontend
+
+# Install dependencies
+npm install @tanstack/react-query @tanstack/react-query-devtools
+npm install react-router-dom
+npm install axios
+npm install -D tailwindcss postcss autoprefixer
+npm install @headlessui/react @heroicons/react  # Optional UI components
+npm install react-leaflet@4.2.1
+
+# Initialize Tailwind CSS
+npx tailwindcss init -p 
+
+npm run dev 
+
+npm install 
+
+mkdir -p frontend/public 
+
+# Remove node_modules and package-lock.json
+rm -rf node_modules package-lock.json
+
+# Clean npm cache
+npm cache clean --force
+
+# Reinstall dependencies
+npm install
+
+# Start the dev server again
+npm run dev 

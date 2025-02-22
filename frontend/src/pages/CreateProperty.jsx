@@ -1,0 +1,495 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import api from "../utils/api";
+
+// Fix Leaflet marker icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
+// Map marker component
+function LocationMarker({ position, setPosition }) {
+  useMapEvents({
+    click(e) {
+      setPosition(e.latlng);
+    },
+  });
+
+  return position === null ? null : <Marker position={position} />;
+}
+
+function CreateProperty() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    address: "",
+    city: "",
+    latitude: "",
+    longitude: "",
+    plot_number: "",
+    property_type: "house",
+    size: "",
+    number_of_floors: "",
+    number_of_rooms: "",
+    condition: "GOOD",
+    images: [],
+  });
+
+  const [previewImages, setPreviewImages] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [position, setPosition] = useState(null);
+
+  const createPropertyMutation = useMutation({
+    mutationFn: async (propertyData) => {
+      const formData = new FormData();
+
+      // Add property details
+      Object.keys(propertyData).forEach((key) => {
+        if (key !== "images") {
+          formData.append(key, propertyData[key]);
+        }
+      });
+
+      // Add images
+      propertyData.images.forEach((image) => {
+        formData.append("uploaded_images", image);
+      });
+
+      const response = await api.post("/properties/", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      navigate("/properties");
+    },
+  });
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...files],
+    }));
+
+    // Create preview URLs
+    const newPreviewImages = files.map((file) => URL.createObjectURL(file));
+    setPreviewImages((prev) => [...prev, ...newPreviewImages]);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    setFormData((prev) => ({
+      ...prev,
+      images: [...prev.images, ...files],
+    }));
+
+    // Create preview URLs
+    const newPreviewImages = files.map((file) => URL.createObjectURL(file));
+    setPreviewImages((prev) => [...prev, ...newPreviewImages]);
+  };
+
+  const removeImage = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    createPropertyMutation.mutate(formData);
+  };
+
+  const handlePositionChange = (newPosition) => {
+    setPosition(newPosition);
+    setFormData((prev) => ({
+      ...prev,
+      latitude: newPosition.lat.toFixed(6),
+      longitude: newPosition.lng.toFixed(6),
+    }));
+  };
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+          Add New Property
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-gray-900">
+              Basic Information
+            </h2>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.title}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Description <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={4}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-gray-900">Location</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  City <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.city}
+                  onChange={(e) =>
+                    setFormData({ ...formData, city: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Map Section */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Select Location on Map
+              </label>
+              <div className="h-[400px] rounded-lg overflow-hidden border border-gray-300">
+                <MapContainer
+                  center={[24.7136, 46.6753]} // Default to Riyadh
+                  zoom={13}
+                  style={{ height: "100%", width: "100%" }}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <LocationMarker
+                    position={position}
+                    setPosition={handlePositionChange}
+                  />
+                </MapContainer>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Latitude
+                </label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.latitude}
+                  onChange={(e) =>
+                    setFormData({ ...formData, latitude: e.target.value })
+                  }
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Longitude
+                </label>
+                <input
+                  type="text"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.longitude}
+                  onChange={(e) =>
+                    setFormData({ ...formData, longitude: e.target.value })
+                  }
+                  readOnly
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Property Details */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-gray-900">
+              Property Details
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Plot Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.plot_number}
+                  onChange={(e) =>
+                    setFormData({ ...formData, plot_number: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Property Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  required
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.property_type}
+                  onChange={(e) =>
+                    setFormData({ ...formData, property_type: e.target.value })
+                  }
+                >
+                  <option value="house">House</option>
+                  <option value="apartment">Apartment</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Size (sq m) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.size}
+                  onChange={(e) =>
+                    setFormData({ ...formData, size: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Number of Floors
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.number_of_floors}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      number_of_floors: e.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Number of Rooms
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                  value={formData.number_of_rooms}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      number_of_rooms: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Condition <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.condition}
+                onChange={(e) =>
+                  setFormData({ ...formData, condition: e.target.value })
+                }
+              >
+                <option value="GOOD">Good</option>
+                <option value="FAIR">Fair</option>
+                <option value="POOR">Poor</option>
+                <option value="DILAPIDATED">Dilapidated</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Images */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-medium text-gray-900">
+              Property Images
+            </h2>
+
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center ${
+                dragActive
+                  ? "border-[#5454c7] bg-[#5454c7]/5"
+                  : "border-gray-300"
+              }`}
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+            >
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                id="images"
+                onChange={handleImageChange}
+              />
+              <label
+                htmlFor="images"
+                className="cursor-pointer flex flex-col items-center space-y-2"
+              >
+                <svg
+                  className="w-12 h-12 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span className="text-gray-600">
+                  Drag and drop images here, or click to select files
+                </span>
+              </label>
+            </div>
+
+            {/* Image Previews */}
+            {previewImages.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {previewImages.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={preview}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-[#5454c7] text-white py-3 px-4 rounded-md hover:bg-[#4444b3] focus:outline-none focus:ring-2 focus:ring-[#5454c7] focus:ring-offset-2"
+            disabled={createPropertyMutation.isPending}
+          >
+            {createPropertyMutation.isPending
+              ? "Creating Property..."
+              : "Create Property"}
+          </button>
+
+          {createPropertyMutation.isError && (
+            <p className="text-red-500 text-sm text-center">
+              {createPropertyMutation.error.response?.data?.error ||
+                "Failed to create property"}
+            </p>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default CreateProperty;
