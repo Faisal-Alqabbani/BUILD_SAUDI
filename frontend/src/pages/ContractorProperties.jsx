@@ -8,8 +8,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [evaluation, setEvaluation] = useState({
     report: "",
-    rating: 0,
-    status: "",
+    rating: 5,
   });
 
   const position = [
@@ -30,11 +29,11 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
   };
 
   const handleSubmit = () => {
-    if (!evaluation.report || !evaluation.rating || !evaluation.status) {
-      alert("Please fill in all evaluation fields");
+    if (!evaluation.report || !evaluation.rating) {
+      alert("يرجى ملء تقرير التقييم والتقييم");
       return;
     }
-    onSubmitEvaluation(property.id, evaluation);
+    onSubmitEvaluation(property.id, { ...evaluation, status: "approved" });
   };
 
   return (
@@ -48,7 +47,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                 {property.title}
               </h2>
               <span className="inline-block mt-2 px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                Pending Evaluation
+                قيد التقييم
               </span>
             </div>
             <button
@@ -80,12 +79,12 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
               {property.images && property.images.length > 0 ? (
                 <img
                   src={property.images[currentImageIndex].image}
-                  alt={`Property ${currentImageIndex + 1}`}
+                  alt={`الصورة ${currentImageIndex + 1}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <span className="text-gray-400">No images available</span>
+                  <span className="text-gray-400">لا توجد صور متاحة</span>
                 </div>
               )}
             </div>
@@ -147,7 +146,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                   >
                     <img
                       src={image.image}
-                      alt={`Thumbnail ${index + 1}`}
+                      alt={`الصورة المصغرة ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
                   </button>
@@ -161,52 +160,56 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
             {/* Property Details */}
             <div className="bg-gray-50 p-6 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Property Details
+                تفاصيل العقار
               </h3>
               <dl className="space-y-4">
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Address</dt>
+                  <dt className="text-sm font-medium text-gray-500">العنوان</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.address}, {property.city}
+                    {property.address}، {property.city}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Property Type
+                    نوع العقار
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900 capitalize">
-                    {property.property_type}
+                    {property.property_type === "house" ? "منزل" : "شقة"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Size</dt>
+                  <dt className="text-sm font-medium text-gray-500">المساحة</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.size} m²
+                    {property.size} م²
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Rooms</dt>
+                  <dt className="text-sm font-medium text-gray-500">الغرف</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {property.number_of_rooms}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Floors</dt>
+                  <dt className="text-sm font-medium text-gray-500">الطوابق</dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {property.number_of_floors}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">
-                    Condition
-                  </dt>
+                  <dt className="text-sm font-medium text-gray-500">الحالة</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.condition}
+                    {property.condition === "GOOD"
+                      ? "جيد"
+                      : property.condition === "FAIR"
+                      ? "متوسط"
+                      : property.condition === "POOR"
+                      ? "ضعيف"
+                      : "متدهور"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Plot Number
+                    رقم القطعة
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {property.plot_number}
@@ -214,10 +217,10 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Coordinates
+                    الإحداثيات
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.latitude}, {property.longitude}
+                    {property.latitude}، {property.longitude}
                   </dd>
                 </div>
               </dl>
@@ -231,7 +234,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                 >
                   <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
                   <Marker position={position} />
                 </MapContainer>
@@ -241,12 +244,12 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
             {/* Owner Details */}
             <div className="bg-gray-50 p-6 rounded-lg">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Owner Details
+                تفاصيل المالك
               </h3>
               <dl className="space-y-4">
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Full Name
+                    الاسم الكامل
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {property.homeowner?.first_name}{" "}
@@ -254,34 +257,40 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Email</dt>
+                  <dt className="text-sm font-medium text-gray-500">
+                    البريد الإلكتروني
+                  </dt>
                   <dd className="mt-1 text-sm text-gray-900">
                     {property.homeowner?.email}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Phone</dt>
+                  <dt className="text-sm font-medium text-gray-500">الهاتف</dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.homeowner?.phone || "Not provided"}
+                    {property.homeowner?.phone || "غير متوفر"}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-sm font-medium text-gray-500">Gender</dt>
+                  <dt className="text-sm font-medium text-gray-500">الجنس</dt>
                   <dd className="mt-1 text-sm text-gray-900 capitalize">
-                    {property.homeowner?.gender || "Not specified"}
+                    {property.homeowner?.gender === "male"
+                      ? "ذكر"
+                      : property.homeowner?.gender === "female"
+                      ? "أنثى"
+                      : "غير محدد"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    National ID
+                    الهوية الوطنية
                   </dt>
                   <dd className="mt-1 text-sm text-gray-900">
-                    {property.homeowner?.national_id || "Not provided"}
+                    {property.homeowner?.national_id || "غير متوفر"}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm font-medium text-gray-500">
-                    Mobile Verification
+                    التحقق من الهاتف
                   </dt>
                   <dd className="mt-1">
                     <span
@@ -292,8 +301,8 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                       }`}
                     >
                       {property.homeowner?.mobile_verified
-                        ? "Verified"
-                        : "Not Verified"}
+                        ? "تم التحقق"
+                        : "غير متحقق"}
                     </span>
                   </dd>
                 </div>
@@ -304,7 +313,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
           {/* Contact & Visit Section */}
           <div className="mt-8 bg-gray-50 p-6 rounded-lg">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Contact & Visit
+              التواصل والزيارة
             </h3>
             <div className="space-y-4">
               {/* Contact Buttons */}
@@ -325,7 +334,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                   >
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                   </svg>
-                  WhatsApp
+                  واتساب
                 </a>
                 <a
                   href={`tel:${property.homeowner?.phone}`}
@@ -344,7 +353,7 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                       d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                     />
                   </svg>
-                  Call
+                  اتصال
                 </a>
                 <a
                   href={`https://www.google.com/maps/dir/?api=1&destination=${property.latitude},${property.longitude}`}
@@ -371,19 +380,19 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
                       d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                     />
                   </svg>
-                  Get Directions
+                  الحصول على الاتجاهات
                 </a>
               </div>
 
               {/* Contact Info */}
               <div className="mt-4">
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">Contact Number:</span>{" "}
-                  {property.homeowner?.phone || "Not provided"}
+                  <span className="font-medium">رقم الاتصال:</span>{" "}
+                  {property.homeowner?.phone || "غير متوفر"}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">
-                  <span className="font-medium">Location:</span>{" "}
-                  {property.address}, {property.city}
+                  <span className="font-medium">الموقع:</span>{" "}
+                  {property.address}، {property.city}
                 </p>
               </div>
             </div>
@@ -391,87 +400,88 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
 
           {/* Description */}
           <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Description
-            </h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">الوصف</h3>
             <p className="text-sm text-gray-600">{property.description}</p>
           </div>
 
-          {/* Evaluation Form */}
-          <div className="mt-8 bg-gray-50 p-6 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Property Evaluation
-            </h3>
-            <div className="space-y-6">
-              {/* Rating */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Property Rating (1-5)
-                </label>
-                <div className="flex gap-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() =>
-                        setEvaluation({ ...evaluation, rating: star })
-                      }
-                      className={`text-2xl ${
-                        star <= evaluation.rating
-                          ? "text-yellow-400"
-                          : "text-gray-300"
-                      }`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Evaluation Report */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Evaluation Report
-                </label>
-                <textarea
-                  value={evaluation.report}
-                  onChange={(e) =>
-                    setEvaluation({ ...evaluation, report: e.target.value })
-                  }
-                  rows={4}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none"
-                  placeholder="Write your detailed evaluation here..."
-                />
-              </div>
+          {/* Add Rating Input */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              التقييم
+            </label>
+            <div className="flex items-center space-x-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setEvaluation({ ...evaluation, rating: star })}
+                  className={`text-2xl ${
+                    star <= evaluation.rating
+                      ? "text-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                >
+                  ★
+                </button>
+              ))}
             </div>
+          </div>
+
+          {/* Evaluation Report */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              تقرير التقييم
+            </label>
+            <textarea
+              value={evaluation.report}
+              onChange={(e) =>
+                setEvaluation({ ...evaluation, report: e.target.value })
+              }
+              rows={4}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+              placeholder="اكتب تقرير التقييم هنا..."
+            />
           </div>
         </div>
 
         {/* Fixed Footer with Actions */}
         <div className="p-6 border-t sticky bottom-0 bg-white z-10 rounded-b-lg">
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end gap-4">
             <button
               onClick={onClose}
               className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
             >
-              Close
+              إغلاق
             </button>
             <button
               onClick={() => {
-                setEvaluation({ ...evaluation, status: "rejected" });
-                handleSubmit();
+                if (!evaluation.report || !evaluation.rating) {
+                  alert("يرجى ملء تقرير التقييم والتقييم");
+                  return;
+                }
+                onSubmitEvaluation(property.id, {
+                  ...evaluation,
+                  status: "rejected",
+                });
               }}
               className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
             >
-              Reject
+              رفض العقار
             </button>
             <button
               onClick={() => {
-                setEvaluation({ ...evaluation, status: "approved" });
-                handleSubmit();
+                if (!evaluation.report || !evaluation.rating) {
+                  alert("يرجى ملء تقرير التقييم والتقييم");
+                  return;
+                }
+                onSubmitEvaluation(property.id, {
+                  ...evaluation,
+                  status: "approved",
+                });
               }}
               className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
             >
-              Approve
+              قبول العقار
             </button>
           </div>
         </div>
@@ -494,16 +504,21 @@ function ContractorProperties() {
 
   const evaluationMutation = useMutation({
     mutationFn: async ({ propertyId, evaluation }) => {
-      return api.post(`/contractors/submit_evaluation/`, {
-        property_id: propertyId,
+      return api.post(`/properties/${propertyId}/contractor_review/`, {
         evaluation_report: evaluation.report,
-        rating: evaluation.rating,
+        rating: parseInt(evaluation.rating),
         status: evaluation.status,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries(["contractor-properties"]);
       setSelectedProperty(null);
+    },
+    onError: (error) => {
+      const errorMessage =
+        error.response?.data?.error || "حدث خطأ أثناء تقديم التقييم";
+      alert(errorMessage);
+      console.error("Evaluation error:", error);
     },
   });
 
@@ -520,7 +535,7 @@ function ContractorProperties() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Properties for Evaluation
+        العقارات للتقييم
       </h1>
 
       {properties.length === 0 ? (
@@ -540,12 +555,11 @@ function ContractorProperties() {
               />
             </svg>
             <h3 className="text-xl font-medium text-gray-900 mb-2">
-              No Properties Assigned
+              لا توجد عقارات معينة
             </h3>
             <p className="text-gray-500 max-w-md">
-              You currently don't have any properties assigned for evaluation.
-              New requests will appear here when administrators assign
-              properties to you.
+              ليس لديك حاليًا أي عقارات معينة للتقييم. ستظهر الطلبات الجديدة هنا
+              عندما يقوم المسؤولون بتخصيص العقارات لك.
             </p>
           </div>
         </div>
@@ -557,7 +571,6 @@ function ContractorProperties() {
               className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
               onClick={() => setSelectedProperty(property)}
             >
-              {/* Property Card - Similar to AdminRequests but with evaluation status */}
               <div className="relative h-48">
                 {property.images && property.images[0] ? (
                   <img
@@ -583,7 +596,7 @@ function ContractorProperties() {
                   </div>
                 )}
                 <span className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                  Needs Evaluation
+                  يحتاج إلى تقييم
                 </span>
               </div>
               <div className="p-4">
@@ -591,14 +604,14 @@ function ContractorProperties() {
                   {property.title}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1 truncate">
-                  {property.address}, {property.city}
+                  {property.address}، {property.city}
                 </p>
                 <div className="mt-4 flex justify-between items-center">
                   <span className="text-sm text-gray-500 capitalize">
-                    {property.property_type}
+                    {property.property_type === "house" ? "منزل" : "شقة"}
                   </span>
                   <span className="text-sm font-medium">
-                    {property.size} m²
+                    {property.size} م²
                   </span>
                 </div>
               </div>

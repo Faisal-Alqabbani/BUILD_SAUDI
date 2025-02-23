@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* RTL Support */
+body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Fix input alignment */
+input, textarea {
+  text-align: right;
+}
+
+/* Fix spacing for RTL */
+.space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+} 

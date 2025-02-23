@@ -12,6 +12,7 @@ import MyProperties from './pages/MyProperties'
 import AdminRequests from './pages/AdminRequests'
 import ContractorProperties from './pages/ContractorProperties'
 import ProtectedRoute from './components/ProtectedRoute'
+import PropertyDetails from './pages/PropertyDetails'
 
 // Create a client
 const queryClient = new QueryClient()
@@ -40,6 +41,7 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route path="/properties/:id" element={<PropertyDetails />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

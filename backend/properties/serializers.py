@@ -43,25 +43,58 @@ class PropertyImageSerializer(serializers.ModelSerializer):
         fields = ('id', 'image', 'is_thumbnail', 'order', 'uploaded_at')
 
 class PropertySerializer(serializers.ModelSerializer):
-    homeowner = CustomUserSerializer(read_only=True)
     images = PropertyImageSerializer(many=True, read_only=True)
-    uploaded_images = serializers.ListField(
-        child=serializers.ImageField(),
-        write_only=True,
-        required=False
-    )
+    homeowner = serializers.SerializerMethodField()
+    assigned_contractor = serializers.SerializerMethodField()
+    condition_display = serializers.SerializerMethodField()
+    status_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Property
-        fields = (
-            'id', 'homeowner', 'title', 'description',
-            'address', 'city', 'latitude', 'longitude',
-            'plot_number', 'property_type', 'size',
-            'number_of_floors', 'number_of_rooms',
-            'condition', 'status', 'admin_approver',
-            'assigned_contractor', 'evaluation_report',
-            'evaluation_date', 'images', 'uploaded_images'
-        )
+        fields = [
+            'id', 'title', 'description', 'address', 'city',
+            'size', 'property_type', 'number_of_rooms', 'number_of_floors',
+            'plot_number', 'condition', 'condition_display', 
+            'status', 'status_display', 'latitude', 'longitude',
+            'images', 'homeowner', 'assigned_contractor', 'evaluation_report', 
+            'rating', 'evaluation_date'
+        ]
+
+    def get_homeowner(self, obj):
+        return {
+            'name': obj.homeowner.get_full_name() or obj.homeowner.email,
+            'email': obj.homeowner.email,
+            'phone': obj.homeowner.phone
+        }
+
+    def get_assigned_contractor(self, obj):
+        if obj.assigned_contractor:
+            return {
+                'name': obj.assigned_contractor.user.get_full_name(),
+                'email': obj.assigned_contractor.user.email,
+                'specialization': obj.assigned_contractor.specialization,
+                'experience_years': obj.assigned_contractor.experience_years,
+                'phone': obj.assigned_contractor.user.phone
+            }
+        return None
+
+    def get_condition_display(self, obj):
+        condition_map = {
+            'GOOD': 'حالة ممتازة',
+            'FAIR': 'حالة جيدة',
+            'POOR': 'حالة متوسطة',
+            'DILAPIDATED': 'حالة سيئة'
+        }
+        return condition_map.get(obj.condition, obj.condition)
+
+    def get_status_display(self, obj):
+        status_map = {
+            'pending': 'قيد المراجعة',
+            'approved': 'تمت الموافقة',
+            'rejected': 'مرفوض',
+            'eval_pending': 'قيد التقييم'
+        }
+        return status_map.get(obj.status, obj.status)
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images', [])
@@ -109,7 +142,7 @@ class SignupSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = (
-            'username', 'email', 'password',
+            'email', 'password',
             'first_name', 'last_name', 'role', 'gender',
             'date_of_birth', 'phone', 'national_id',
             'contractor_details'
@@ -118,6 +151,9 @@ class SignupSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         contractor_details = validated_data.pop('contractor_details', None)
         password = validated_data.pop('password')
+        
+        # Set username to email
+        validated_data['username'] = validated_data['email']
         
         # Create user
         user = CustomUser.objects.create(**validated_data)
@@ -136,11 +172,16 @@ class SignupSerializer(serializers.ModelSerializer):
         return user
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField()
 
     def validate(self, data):
-        user = authenticate(**data)
-        if user and user.is_active:
-            return user
-        raise serializers.ValidationError("Incorrect Credentials") 
+        try:
+            user = CustomUser.objects.get(email=data['email'])
+            if user.check_password(data['password']):
+                if user.is_active:
+                    return user
+        except CustomUser.DoesNotExist:
+            pass
+        
+        raise serializers.ValidationError("البريد الإلكتروني أو كلمة المرور غير صحيحة") 

@@ -6,18 +6,18 @@ function StatusStepper({ status }) {
   const steps = [
     {
       id: "admin",
-      label: "Admin Review",
-      description: "Under admin review",
+      label: "مراجعة إدارية",
+      description: "قيد المراجعة الإدارية",
     },
     {
       id: "evaluation",
-      label: "Contractor Evaluation",
-      description: "Property evaluation",
+      label: "تقييم المقاول",
+      description: "تقييم العقار",
     },
     {
       id: "final",
-      label: "Final Status",
-      description: "Final decision",
+      label: "الحالة النهائية",
+      description: "القرار النهائي",
     },
   ];
 
@@ -132,8 +132,6 @@ function PropertyCard({ property }) {
     switch (status) {
       case "pending":
         return "bg-yellow-100 text-yellow-800";
-      case "eval_pending":
-        return "bg-blue-100 text-blue-800";
       case "approved":
         return "bg-green-100 text-green-800";
       case "rejected":
@@ -143,24 +141,9 @@ function PropertyCard({ property }) {
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
-      case "pending":
-        return "Under Admin Review";
-      case "eval_pending":
-        return "Under Evaluation";
-      case "approved":
-        return "Approved";
-      case "rejected":
-        return "Rejected";
-      default:
-        return status;
-    }
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-      {/* Property Image with Status Badges */}
+      {/* Property Image with Status Badge (singular) */}
       <div className="h-48 overflow-hidden relative">
         {property.images && property.images[0] ? (
           <img
@@ -185,14 +168,20 @@ function PropertyCard({ property }) {
             </svg>
           </div>
         )}
-        {/* Status Badges */}
-        <div className="absolute top-4 right-4 flex flex-col gap-2">
+        {/* Single Status Badge */}
+        <div className="absolute top-4 right-4">
           <span
             className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusBadgeStyle(
               property.status
             )}`}
           >
-            {getStatusText(property.status)}
+            {property.status === "pending"
+              ? "قيد المراجعة"
+              : property.status === "approved"
+              ? "تمت الموافقة"
+              : property.status === "rejected"
+              ? "مرفوض"
+              : property.status}
           </span>
         </div>
       </div>
@@ -204,7 +193,7 @@ function PropertyCard({ property }) {
         </h3>
         <div className="flex items-center mt-2 text-gray-600">
           <svg
-            className="w-4 h-4 mr-1"
+            className="w-4 h-4 ml-1"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -223,14 +212,14 @@ function PropertyCard({ property }) {
             />
           </svg>
           <span className="text-sm">
-            {property.address}, {property.city}
+            {property.address}، {property.city}
           </span>
         </div>
 
         <div className="grid grid-cols-3 gap-4 mt-4">
           <div className="flex items-center">
             <svg
-              className="w-5 h-5 text-gray-500 mr-2"
+              className="w-5 h-5 text-gray-500 ml-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -244,14 +233,14 @@ function PropertyCard({ property }) {
             </svg>
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {property.size} m²
+                {property.size} م²
               </p>
-              <p className="text-xs text-gray-500">Area</p>
+              <p className="text-xs text-gray-500">المساحة</p>
             </div>
           </div>
           <div className="flex items-center">
             <svg
-              className="w-5 h-5 text-gray-500 mr-2"
+              className="w-5 h-5 text-gray-500 ml-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -267,12 +256,12 @@ function PropertyCard({ property }) {
               <p className="text-sm font-medium text-gray-900">
                 {property.number_of_rooms}
               </p>
-              <p className="text-xs text-gray-500">Rooms</p>
+              <p className="text-xs text-gray-500">الغرف</p>
             </div>
           </div>
           <div className="flex items-center">
             <svg
-              className="w-5 h-5 text-gray-500 mr-2"
+              className="w-5 h-5 text-gray-500 ml-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -286,9 +275,9 @@ function PropertyCard({ property }) {
             </svg>
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {property.condition}
+                {property.condition_display}
               </p>
-              <p className="text-xs text-gray-500">Condition</p>
+              <p className="text-xs text-gray-500">الحالة</p>
             </div>
           </div>
         </div>
@@ -320,6 +309,7 @@ function MyProperties() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5454c7]"></div>
+          <span className="mr-2">جاري التحميل...</span>
         </div>
       </div>
     );
@@ -329,7 +319,7 @@ function MyProperties() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center text-red-500">
-          Failed to load properties
+          حدث خطأ أثناء تحميل العقارات
         </div>
       </div>
     );
@@ -338,22 +328,22 @@ function MyProperties() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">My Properties</h1>
+        <h1 className="text-2xl font-bold text-gray-900">عقاراتي</h1>
         <Link
           to="/properties/create"
           className="bg-[#5454c7] text-white px-4 py-2 rounded-md hover:bg-[#4444b3]"
         >
-          Add New Property
+          إضافة عقار جديد
         </Link>
       </div>
 
       {properties.length === 0 ? (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-900">
-            No properties yet
+            لا يوجد لديك عقارات
           </h3>
           <p className="text-gray-500 mt-2">
-            Start by adding your first property
+            ابدأ بإضافة عقارك الأول للحصول على تقييم له
           </p>
         </div>
       ) : (

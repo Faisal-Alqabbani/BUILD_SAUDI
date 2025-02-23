@@ -5,6 +5,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 # Create your models here.
 
 class CustomUser(AbstractUser):
+    email = models.EmailField(unique=True)
     ROLE_CHOICES = (
         ('user', 'Property Owner'),
         ('admin', 'Administrator'),
@@ -29,10 +30,19 @@ class CustomUser(AbstractUser):
     national_id = models.CharField(max_length=10, unique=True, null=True, blank=True)
     registration_date = models.DateTimeField(auto_now_add=True)
 
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []  # Remove username from required fields
+
     def __str__(self):
         if self.first_name and self.last_name:
             return f"{self.first_name} {self.last_name}"
         return self.username
+
+    def save(self, *args, **kwargs):
+        if not self.username:
+            # Set username to email if not provided
+            self.username = self.email
+        super().save(*args, **kwargs)
 
 class Property(models.Model):
     PROPERTY_TYPES = (
@@ -82,6 +92,7 @@ class Property(models.Model):
     number_of_rooms = models.PositiveIntegerField(null=True, blank=True)
     condition = models.CharField(max_length=20, choices=CONDITION_CHOICES)
     rating = models.FloatField(null=True, blank=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
     
     # Workflow Status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import api from "../utils/api";
+import { saudiCities } from "../data/saudiCities";
 
 // Fix Leaflet marker icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -17,11 +18,68 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
+// Add this function at the top with other imports
+async function reverseGeocode(lat, lon) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar&addressdetails=1`
+    );
+    const data = await response.json();
+
+    // Try to find the city from address components
+    let city =
+      data.address.city ||
+      data.address.state ||
+      data.address.county ||
+      data.address.region;
+
+    // Find closest matching city from our saudiCities list
+    if (city) {
+      city =
+        saudiCities.find(
+          (saudiCity) => city.includes(saudiCity) || saudiCity.includes(city)
+        ) || city;
+    }
+
+    // Format detailed address - only take first 3 important components
+    const addressComponents = [
+      data.address.building,
+      data.address.road,
+      data.address.neighbourhood,
+      data.address.suburb,
+      data.address.district,
+      data.address.quarter,
+    ].filter(Boolean); // Remove undefined/null values
+
+    // Take only first 3 components
+    const formattedAddress = addressComponents.slice(0, 3).join("، ");
+
+    return {
+      address:
+        formattedAddress || data.display_name.split("،").slice(0, 3).join("، "),
+      city: city || "",
+    };
+  } catch (error) {
+    console.error("Error reverse geocoding:", error);
+    return null;
+  }
+}
+
 // Map marker component
-function LocationMarker({ position, setPosition }) {
+function LocationMarker({ position, setPosition, updateAddress }) {
   useMapEvents({
-    click(e) {
-      setPosition(e.latlng);
+    async click(e) {
+      const newPosition = e.latlng;
+      setPosition(newPosition);
+
+      // Get address from coordinates
+      const locationInfo = await reverseGeocode(
+        newPosition.lat,
+        newPosition.lng
+      );
+      if (locationInfo) {
+        updateAddress(locationInfo);
+      }
     },
   });
 
@@ -30,6 +88,7 @@ function LocationMarker({ position, setPosition }) {
 
 function CreateProperty() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -51,18 +110,18 @@ function CreateProperty() {
   const [position, setPosition] = useState(null);
 
   const createPropertyMutation = useMutation({
-    mutationFn: async (propertyData) => {
+    mutationFn: async (data) => {
       const formData = new FormData();
 
-      // Add property details
-      Object.keys(propertyData).forEach((key) => {
+      // Add all text fields
+      Object.keys(data).forEach((key) => {
         if (key !== "images") {
-          formData.append(key, propertyData[key]);
+          formData.append(key, data[key]);
         }
       });
 
       // Add images
-      propertyData.images.forEach((image) => {
+      data.images.forEach((image) => {
         formData.append("uploaded_images", image);
       });
 
@@ -74,6 +133,7 @@ function CreateProperty() {
       return response.data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries(["properties"]);
       navigate("/properties");
     },
   });
@@ -125,11 +185,26 @@ function CreateProperty() {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission
+
+    // Validate required fields
+    if (
+      !formData.title ||
+      !formData.description ||
+      !formData.address ||
+      !formData.city ||
+      !formData.plot_number ||
+      !formData.size
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    // Submit the form data
     createPropertyMutation.mutate(formData);
   };
 
-  const handlePositionChange = (newPosition) => {
+  const handlePositionChange = async (newPosition) => {
     setPosition(newPosition);
     setFormData((prev) => ({
       ...prev,
@@ -138,23 +213,31 @@ function CreateProperty() {
     }));
   };
 
+  const updateAddressFromMap = (locationInfo) => {
+    if (locationInfo) {
+      setFormData((prev) => ({
+        ...prev,
+        address: locationInfo.address,
+        // Only update city if we found a valid Saudi city
+        ...(locationInfo.city && saudiCities.includes(locationInfo.city)
+          ? { city: locationInfo.city }
+          : {}),
+      }));
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-xl p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">
-          Add New Property
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50">
+      <div className="max-w-3xl w-full px-6 py-8 bg-white rounded-lg shadow-xl my-8">
+        <h1 className="text-3xl font-bold text-center text-gray-900 mb-8">
+          إضافة عقار جديد
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-medium text-gray-900">
-              Basic Information
-            </h2>
-
+          <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Title <span className="text-red-500">*</span>
+                عنوان العقار <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -164,12 +247,13 @@ function CreateProperty() {
                 onChange={(e) =>
                   setFormData({ ...formData, title: e.target.value })
                 }
+                placeholder="أدخل عنوان العقار"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Description <span className="text-red-500">*</span>
+                وصف العقار <span className="text-red-500">*</span>
               </label>
               <textarea
                 required
@@ -179,166 +263,142 @@ function CreateProperty() {
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
                 }
+                placeholder="اكتب وصفاً تفصيلياً للعقار"
               />
             </div>
-          </div>
 
-          {/* Location */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-medium text-gray-900">Location</h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  City <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.city}
-                  onChange={(e) =>
-                    setFormData({ ...formData, city: e.target.value })
-                  }
-                />
-              </div>
+            <div>
+              <label
+                htmlFor="city"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                المدينة
+              </label>
+              <select
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={(e) =>
+                  setFormData({ ...formData, city: e.target.value })
+                }
+                required
+                className="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-[#5454c7] focus:border-[#5454c7]"
+              >
+                <option value="">اختر المدينة</option>
+                {saudiCities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Map Section */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Select Location on Map
+            <div>
+              <label
+                htmlFor="address"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                العنوان التفصيلي
               </label>
-              <div className="h-[400px] rounded-lg overflow-hidden border border-gray-300">
+              <input
+                type="text"
+                id="address"
+                name="address"
+                value={formData.address}
+                onChange={(e) =>
+                  setFormData({ ...formData, address: e.target.value })
+                }
+                required
+                disabled
+                className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm 
+                  focus:outline-none focus:ring-[#5454c7] focus:border-[#5454c7] 
+                  bg-gray-50 cursor-not-allowed"
+                placeholder="سيتم تعبئة العنوان تلقائياً عند اختيار الموقع على الخريطة"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                يتم تحديد العنوان تلقائياً عند اختيار الموقع على الخريطة
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                الموقع على الخريطة <span className="text-red-500">*</span>
+              </label>
+              <div className="h-[400px] rounded-lg overflow-hidden">
                 <MapContainer
-                  center={[24.7136, 46.6753]} // Default to Riyadh
+                  center={[24.7136, 46.6753]}
                   zoom={13}
-                  style={{ height: "100%", width: "100%" }}
+                  className="h-full"
                 >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  />
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <LocationMarker
                     position={position}
                     setPosition={handlePositionChange}
+                    updateAddress={updateAddressFromMap}
                   />
                 </MapContainer>
               </div>
+              <p className="mt-2 text-sm text-gray-500">
+                انقر على الخريطة لتحديد موقع العقار
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Latitude
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.latitude}
-                  onChange={(e) =>
-                    setFormData({ ...formData, latitude: e.target.value })
-                  }
-                  readOnly
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Longitude
-                </label>
-                <input
-                  type="text"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.longitude}
-                  onChange={(e) =>
-                    setFormData({ ...formData, longitude: e.target.value })
-                  }
-                  readOnly
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Property Details */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-medium text-gray-900">
-              Property Details
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Plot Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.plot_number}
-                  onChange={(e) =>
-                    setFormData({ ...formData, plot_number: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Property Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  required
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.property_type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, property_type: e.target.value })
-                  }
-                >
-                  <option value="house">House</option>
-                  <option value="apartment">Apartment</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                رقم قطعة الأرض <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.plot_number}
+                onChange={(e) =>
+                  setFormData({ ...formData, plot_number: e.target.value })
+                }
+                placeholder="رقم قطعة الأرض"
+              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                نوع العقار <span className="text-red-500">*</span>
+              </label>
+              <select
+                required
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.property_type}
+                onChange={(e) =>
+                  setFormData({ ...formData, property_type: e.target.value })
+                }
+              >
+                <option value="house">منزل</option>
+                <option value="apartment">شقة</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                المساحة (متر مربع) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                required
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.size}
+                onChange={(e) =>
+                  setFormData({ ...formData, size: e.target.value })
+                }
+                placeholder="مساحة العقار بالمتر المربع"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Size (sq m) <span className="text-red-500">*</span>
+                  عدد الطوابق
                 </label>
                 <input
                   type="number"
-                  required
-                  min="0"
-                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
-                  value={formData.size}
-                  onChange={(e) =>
-                    setFormData({ ...formData, size: e.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Number of Floors
-                </label>
-                <input
-                  type="number"
-                  min="0"
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
                   value={formData.number_of_floors}
                   onChange={(e) =>
@@ -347,16 +407,16 @@ function CreateProperty() {
                       number_of_floors: e.target.value,
                     })
                   }
+                  placeholder="عدد الطوابق"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Number of Rooms
+                  عدد الغرف
                 </label>
                 <input
                   type="number"
-                  min="0"
                   className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
                   value={formData.number_of_rooms}
                   onChange={(e) =>
@@ -365,13 +425,14 @@ function CreateProperty() {
                       number_of_rooms: e.target.value,
                     })
                   }
+                  placeholder="عدد الغرف"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Condition <span className="text-red-500">*</span>
+                حالة العقار <span className="text-red-500">*</span>
               </label>
               <select
                 required
@@ -381,19 +442,17 @@ function CreateProperty() {
                   setFormData({ ...formData, condition: e.target.value })
                 }
               >
-                <option value="GOOD">Good</option>
-                <option value="FAIR">Fair</option>
-                <option value="POOR">Poor</option>
-                <option value="DILAPIDATED">Dilapidated</option>
+                <option value="GOOD">جيدة</option>
+                <option value="FAIR">مقبولة</option>
+                <option value="POOR">سيئة</option>
+                <option value="DILAPIDATED">متهالكة</option>
               </select>
             </div>
           </div>
 
           {/* Images */}
           <div className="space-y-4">
-            <h2 className="text-lg font-medium text-gray-900">
-              Property Images
-            </h2>
+            <h2 className="text-lg font-medium text-gray-900">صور العقار</h2>
 
             <div
               className={`border-2 border-dashed rounded-lg p-6 text-center ${
@@ -432,7 +491,7 @@ function CreateProperty() {
                   />
                 </svg>
                 <span className="text-gray-600">
-                  Drag and drop images here, or click to select files
+                  اسحب وأفلت الصور هنا، أو انقر لاختيار الملفات
                 </span>
               </label>
             </div>
@@ -444,7 +503,7 @@ function CreateProperty() {
                   <div key={index} className="relative group">
                     <img
                       src={preview}
-                      alt={`Preview ${index + 1}`}
+                      alt={`معاينة ${index + 1}`}
                       className="w-full h-32 object-cover rounded-lg"
                     />
                     <button
@@ -476,14 +535,13 @@ function CreateProperty() {
             disabled={createPropertyMutation.isPending}
           >
             {createPropertyMutation.isPending
-              ? "Creating Property..."
-              : "Create Property"}
+              ? "جاري إضافة العقار..."
+              : "إضافة العقار"}
           </button>
 
           {createPropertyMutation.isError && (
             <p className="text-red-500 text-sm text-center">
-              {createPropertyMutation.error.response?.data?.error ||
-                "Failed to create property"}
+              حدث خطأ أثناء إضافة العقار
             </p>
           )}
         </form>
