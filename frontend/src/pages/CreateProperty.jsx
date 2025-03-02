@@ -18,68 +18,12 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
 });
 
-// Add this function at the top with other imports
-async function reverseGeocode(lat, lon) {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=ar&addressdetails=1`
-    );
-    const data = await response.json();
-
-    // Try to find the city from address components
-    let city =
-      data.address.city ||
-      data.address.state ||
-      data.address.county ||
-      data.address.region;
-
-    // Find closest matching city from our saudiCities list
-    if (city) {
-      city =
-        saudiCities.find(
-          (saudiCity) => city.includes(saudiCity) || saudiCity.includes(city)
-        ) || city;
-    }
-
-    // Format detailed address - only take first 3 important components
-    const addressComponents = [
-      data.address.building,
-      data.address.road,
-      data.address.neighbourhood,
-      data.address.suburb,
-      data.address.district,
-      data.address.quarter,
-    ].filter(Boolean); // Remove undefined/null values
-
-    // Take only first 3 components
-    const formattedAddress = addressComponents.slice(0, 3).join("، ");
-
-    return {
-      address:
-        formattedAddress || data.display_name.split("،").slice(0, 3).join("، "),
-      city: city || "",
-    };
-  } catch (error) {
-    console.error("Error reverse geocoding:", error);
-    return null;
-  }
-}
-
 // Map marker component
-function LocationMarker({ position, setPosition, updateAddress }) {
+function LocationMarker({ position, setPosition }) {
   useMapEvents({
-    async click(e) {
+    click(e) {
       const newPosition = e.latlng;
       setPosition(newPosition);
-
-      // Get address from coordinates
-      const locationInfo = await reverseGeocode(
-        newPosition.lat,
-        newPosition.lng
-      );
-      if (locationInfo) {
-        updateAddress(locationInfo);
-      }
     },
   });
 
@@ -204,26 +148,13 @@ function CreateProperty() {
     createPropertyMutation.mutate(formData);
   };
 
-  const handlePositionChange = async (newPosition) => {
+  const handlePositionChange = (newPosition) => {
     setPosition(newPosition);
     setFormData((prev) => ({
       ...prev,
       latitude: newPosition.lat.toFixed(6),
       longitude: newPosition.lng.toFixed(6),
     }));
-  };
-
-  const updateAddressFromMap = (locationInfo) => {
-    if (locationInfo) {
-      setFormData((prev) => ({
-        ...prev,
-        address: locationInfo.address,
-        // Only update city if we found a valid Saudi city
-        ...(locationInfo.city && saudiCities.includes(locationInfo.city)
-          ? { city: locationInfo.city }
-          : {}),
-      }));
-    }
   };
 
   return (
@@ -309,15 +240,9 @@ function CreateProperty() {
                   setFormData({ ...formData, address: e.target.value })
                 }
                 required
-                disabled
-                className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm 
-                  focus:outline-none focus:ring-[#5454c7] focus:border-[#5454c7] 
-                  bg-gray-50 cursor-not-allowed"
-                placeholder="سيتم تعبئة العنوان تلقائياً عند اختيار الموقع على الخريطة"
+                className="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#5454c7] focus:border-[#5454c7]"
+                placeholder="مثال: حي النرجس، شارع الملك عبدالله"
               />
-              <p className="mt-1 text-sm text-gray-500">
-                يتم تحديد العنوان تلقائياً عند اختيار الموقع على الخريطة
-              </p>
             </div>
 
             <div>
@@ -334,7 +259,6 @@ function CreateProperty() {
                   <LocationMarker
                     position={position}
                     setPosition={handlePositionChange}
-                    updateAddress={updateAddressFromMap}
                   />
                 </MapContainer>
               </div>

@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import logo from '../assets/logo.png'; // Make sure to import your logo
+import { Link } from "react-router-dom";
+import logo from "../assets/logo.png"; // Make sure to import your logo
 
 function Footer() {
   const currentYear = new Date().getFullYear();
@@ -11,12 +11,13 @@ function Footer() {
           <div className="flex items-center mb-4 md:mb-0">
             <Link to="/" className="flex items-center">
               <img src={logo} alt="احياء السعودية" className="h-10" />
-              <span className="text-xl font-bold text-gray-900 mr-2">احياء السعودية</span>
+              <span className="text-xl font-bold text-gray-900 mr-2">
+                احياء السعودية
+              </span>
             </Link>
           </div>
           <div className="text-gray-600 text-sm text-center">
             <p>جميع الحقوق محفوظة © {currentYear} احياء السعودية</p>
-            <p className="mt-1">منصة تقييم وإدارة العقارات</p>
           </div>
         </div>
       </div>
@@ -24,4 +25,4 @@ function Footer() {
   );
 }
 
-export default Footer; 
+export default Footer;

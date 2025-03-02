@@ -1,0 +1,25 @@
+# Core Django
+Django==4.2.19
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+
+# Image handling
+Pillow==10.2.0  # For PropertyImage model
+
+# Authentication
+djangorestframework-authtoken==0.0.1  # For Token authentication we're using
+
+# Development
+django-debug-toolbar==4.3.0  # Optional for development
+
+# Environment variables
+python-dotenv==1.0.1
+
+# WSGI server
+gunicorn==21.2.0
+
+# API documentation (optional)
+drf-yasg==1.21.7
+
+# Security
+django-filter==23.5 
