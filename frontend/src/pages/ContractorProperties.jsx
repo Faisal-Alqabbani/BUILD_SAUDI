@@ -1,8 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import api from "../utils/api";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import PropertyCard from "../components/PropertyCard";
+import EvaluationModal from "../components/EvaluationModal";
+import { useNavigate } from "react-router-dom";
+import { useDropzone } from "react-dropzone";
 
 function PropertyModal({ property, onClose, onSubmitEvaluation }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -46,8 +50,18 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
               <h2 className="text-2xl font-bold text-gray-900">
                 {property.title}
               </h2>
-              <span className="inline-block mt-2 px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-                قيد التقييم
+              <span
+                className={`inline-block mt-2 px-3 py-1 text-sm font-medium rounded-full ${
+                  property.status === "completed"
+                    ? "bg-green-100 text-green-800"
+                    : property.status === "in_progress"
+                    ? "bg-blue-100 text-blue-800"
+                    : property.status === "rejected"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-yellow-100 text-yellow-800"
+                }`}
+              >
+                {property.status_display}
               </span>
             </div>
             <button
@@ -490,15 +504,256 @@ function PropertyModal({ property, onClose, onSubmitEvaluation }) {
   );
 }
 
+function CompletionModal({ property, onClose, onSubmit }) {
+  const [images, setImages] = useState([]);
+  const [note, setNote] = useState("");
+  const [descriptions, setDescriptions] = useState([]);
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onDrop = useCallback((acceptedFiles) => {
+    setImages((prevImages) => [
+      ...prevImages,
+      ...acceptedFiles.map((file) =>
+        Object.assign(file, {
+          preview: URL.createObjectURL(file),
+        })
+      ),
+    ]);
+    setDescriptions((prev) => [
+      ...prev,
+      ...new Array(acceptedFiles.length).fill(""),
+    ]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [".jpeg", ".jpg", ".png"],
+    },
+  });
+
+  const removeImage = (index) => {
+    setImages((prevImages) => prevImages.filter((_, i) => i !== index));
+    setDescriptions((prevDesc) => prevDesc.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (images.length === 0) {
+      setError("يرجى إضافة صور العمل المنجز");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const formData = new FormData();
+    formData.append("completion_note", note);
+    images.forEach((image) => {
+      formData.append("images", image);
+    });
+    descriptions.forEach((desc) => {
+      formData.append("image_descriptions", desc);
+    });
+
+    // Debug log
+    for (let pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+
+    try {
+      await onSubmit(formData);
+      onClose();
+    } catch (error) {
+      console.error("Error response:", error.response?.data);
+      setError(error.response?.data?.detail || "حدث خطأ أثناء إكمال العمل");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Cleanup previews on unmount
+  useEffect(() => {
+    return () => images.forEach((image) => URL.revokeObjectURL(image.preview));
+  }, [images]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b">
+          <div className="flex justify-between items-start">
+            <h2 className="text-2xl font-bold text-gray-900">
+              إكمال العمل - {property.title}
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-500"
+            >
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+
+          <div className="mb-6">
+            <label className="block text-gray-700 mb-2">ملاحظات الإنجاز</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              required
+              className="w-full px-3 py-2 border rounded-md"
+              rows="4"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-gray-700 mb-2">صور العمل المنجز</label>
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+                isDragActive
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-gray-300 hover:border-blue-400"
+              }`}
+            >
+              <input {...getInputProps()} />
+              <div className="space-y-1 text-center">
+                <svg
+                  className="mx-auto h-12 w-12 text-gray-400"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <div className="text-sm text-gray-600">
+                  <label className="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                    <span>اضغط لرفع الصور</span>
+                  </label>
+                  <p className="pl-1">أو اسحب وأفلت الصور هنا</p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  PNG, JPG حتى 10 ميجابايت
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {images.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-medium mb-4">الصور المرفقة</h3>
+              <div className="grid grid-cols-2 gap-4">
+                {images.map((image, index) => (
+                  <div key={index} className="relative">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
+                      <img
+                        src={image.preview}
+                        alt={`Preview ${index + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 p-1 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={descriptions[index]}
+                      onChange={(e) => {
+                        const newDescriptions = [...descriptions];
+                        newDescriptions[index] = e.target.value;
+                        setDescriptions(newDescriptions);
+                      }}
+                      placeholder="وصف الصورة"
+                      className="mt-2 w-full px-3 py-2 border rounded-md"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+            >
+              {isSubmitting ? "جاري الإرسال..." : "إكمال العمل"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function ContractorProperties() {
+  const navigate = useNavigate();
   const [selectedProperty, setSelectedProperty] = useState(null);
   const queryClient = useQueryClient();
 
-  const { data: properties, isLoading } = useQuery({
+  const {
+    data: properties,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ["contractor-properties"],
     queryFn: async () => {
-      const response = await api.get("/properties/?status=eval_pending");
-      return response.data;
+      // Get properties assigned to this contractor
+      const response = await api.get("/properties/");
+      // Filter to only include properties assigned to this contractor
+      // (in_progress or price_proposed status)
+      return response.data.filter(
+        (prop) =>
+          prop.assigned_contractor &&
+          (prop.status === "in_progress" || prop.status === "price_proposed")
+      );
     },
   });
 
@@ -522,11 +777,58 @@ function ContractorProperties() {
     },
   });
 
+  const markAsCompleted = async (propertyId) => {
+    if (window.confirm("هل أنت متأكد من إكمال العمل على هذا العقار؟")) {
+      try {
+        await api.post(`/properties/${propertyId}/complete/`);
+        // Refresh the properties list
+        refetch();
+      } catch (error) {
+        console.error("Error marking property as completed:", error);
+      }
+    }
+  };
+
+  const handleCompleteWork = async (formData) => {
+    try {
+      await api.post(
+        `/properties/${selectedProperty.id}/mark_completed/`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      refetch();
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Add a helper function to translate status to Arabic
+  const getStatusInArabic = (status) => {
+    switch (status) {
+      case "pending":
+        return "قيد المراجعة";
+      case "approved":
+        return "تمت الموافقة";
+      case "rejected":
+        return "مرفوض";
+      case "in_progress":
+        return "قيد التنفيذ";
+      case "completed":
+        return "مكتمل";
+      default:
+        return status;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5454c7]"></div>
         </div>
       </div>
     );
@@ -534,99 +836,79 @@ function ContractorProperties() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        العقارات للتقييم
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">عقاراتي المسندة</h1>
 
-      {properties.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <div className="flex flex-col items-center justify-center">
-            <svg
-              className="w-24 h-24 text-gray-300 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-            <h3 className="text-xl font-medium text-gray-900 mb-2">
-              لا توجد عقارات معينة
-            </h3>
-            <p className="text-gray-500 max-w-md">
-              ليس لديك حاليًا أي عقارات معينة للتقييم. ستظهر الطلبات الجديدة هنا
-              عندما يقوم المسؤولون بتخصيص العقارات لك.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {properties.map((property) => (
-            <div
-              key={property.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedProperty(property)}
-            >
-              <div className="relative h-48">
-                {property.images && property.images[0] ? (
-                  <img
-                    src={property.images[0].image}
-                    alt={property.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                    <svg
-                      className="w-12 h-12 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                )}
-                <span className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                  يحتاج إلى تقييم
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {properties?.map((property) => (
+          <div
+            key={property.id}
+            className="bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer hover:shadow-xl transition-shadow"
+            onClick={() => navigate(`/properties/${property.id}`)}
+          >
+            <div className="h-48 overflow-hidden relative">
+              {property.images && property.images[0] ? (
+                <img
+                  src={property.images[0].image}
+                  alt={property.title}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                  <span className="text-gray-400">لا توجد صورة</span>
+                </div>
+              )}
+              <div className="absolute top-4 right-4">
+                <span
+                  className={`inline-block px-2 py-1 text-xs font-medium rounded-full ${
+                    property.status === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : property.status === "in_progress"
+                      ? "bg-blue-100 text-blue-800"
+                      : property.status === "rejected"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  {getStatusInArabic(property.status)}
                 </span>
               </div>
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
-                  {property.title}
-                </h3>
-                <p className="text-sm text-gray-600 mt-1 truncate">
-                  {property.address}، {property.city}
-                </p>
-                <div className="mt-4 flex justify-between items-center">
-                  <span className="text-sm text-gray-500 capitalize">
-                    {property.property_type === "house" ? "منزل" : "شقة"}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {property.size} م²
-                  </span>
-                </div>
-              </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="p-6">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {property.title}
+              </h3>
+              <p className="text-gray-600 mb-4">{property.address}</p>
+
+              {property.status === "in_progress" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedProperty(property);
+                  }}
+                  className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition"
+                >
+                  إكمال العمل
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {properties?.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900">
+              لا يوجد عقارات مسندة
+            </h3>
+          </div>
+        )}
+      </div>
 
       {selectedProperty && (
-        <PropertyModal
+        <CompletionModal
           property={selectedProperty}
           onClose={() => setSelectedProperty(null)}
-          onSubmitEvaluation={(propertyId, evaluation) =>
-            evaluationMutation.mutate({ propertyId, evaluation })
-          }
+          onSubmit={handleCompleteWork}
         />
       )}
     </div>

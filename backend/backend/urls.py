@@ -20,7 +20,9 @@ from rest_framework.routers import DefaultRouter
 from properties.views import (
     CustomUserViewSet, PropertyViewSet,
     ContractorViewSet, EvaluationRequestViewSet,
-    signup_view, login_view, logout_view
+    signup_view, login_view, logout_view,
+    PriceOfferViewSet, accept_price_offer, reject_price_offer, complete_property_work,
+    mark_property_completed, admin_review_standalone, approve_property
 )
 from django.conf import settings
 from django.conf.urls.static import static
@@ -30,6 +32,7 @@ router.register(r'users', CustomUserViewSet)
 router.register(r'properties', PropertyViewSet)
 router.register(r'contractors', ContractorViewSet)
 router.register(r'evaluation-requests', EvaluationRequestViewSet)
+router.register(r'price-offers', PriceOfferViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -37,4 +40,10 @@ urlpatterns = [
     path('api/signup/', signup_view, name='signup'),
     path('api/login/', login_view, name='login'),
     path('api/logout/', logout_view, name='logout'),
+    path('api/price-offers/<int:offer_id>/accept/', accept_price_offer, name='accept-price-offer'),
+    path('api/price-offers/<int:offer_id>/reject/', reject_price_offer, name='reject-price-offer'),
+    path('api/properties/<int:property_id>/complete/', complete_property_work, name='complete-property-work'),
+    path('api/properties/<int:property_id>/mark_completed/', mark_property_completed, name='mark-property-completed'),
+    path('api/properties/<int:property_id>/admin_review/', admin_review_standalone, name='admin-review'),
+    path('api/properties/<int:property_id>/approve/', approve_property, name='approve-property'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

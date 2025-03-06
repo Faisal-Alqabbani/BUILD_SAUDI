@@ -55,6 +55,12 @@ function Navbar() {
                 >
                   إضافة عقار
                 </Link>
+                <Link
+                  to="/my-offers"
+                  className="text-gray-700 hover:text-blue-600"
+                >
+                  عروض الأسعار
+                </Link>
               </>
             )}
 
@@ -68,12 +74,26 @@ function Navbar() {
             )}
 
             {token && userRole === "contractor" && (
-              <Link
-                to="/contractor/properties"
-                className="text-black hover:text-[#5454c7] px-3 py-2 text-sm font-medium"
-              >
-                العقارات المسندة
-              </Link>
+              <>
+                <Link
+                  to="/contractor/properties"
+                  className="text-black hover:text-[#5454c7] px-3 py-2 text-sm font-medium"
+                >
+                  العقارات المسندة
+                </Link>
+                <Link
+                  to="/contractor/available-properties"
+                  className="text-gray-700 hover:text-blue-600"
+                >
+                  العقارات المتاحة
+                </Link>
+                <Link
+                  to="/contractor/offers"
+                  className="text-gray-700 hover:text-blue-600"
+                >
+                  عروضي
+                </Link>
+              </>
             )}
 
             {token ? (

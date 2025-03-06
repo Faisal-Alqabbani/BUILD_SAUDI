@@ -18,7 +18,7 @@ function Hero() {
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full py-16">
         <div className="flex flex-col justify-center h-full text-right">
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            ابحث عن منزلك المثالي
+            رمم منزلك المثالي
             <br />
             <span className="text-2xl md:text-4xl block mt-2">
               لتجعله موطنك الدائم

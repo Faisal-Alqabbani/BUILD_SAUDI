@@ -5,9 +5,9 @@ import PropertyCard from "../components/PropertyCard";
 
 function Home() {
   const { data: properties, isLoading } = useQuery({
-    queryKey: ["approved-properties"],
+    queryKey: ["completed-properties"],
     queryFn: async () => {
-      const response = await api.get("/properties/?status=approved");
+      const response = await api.get("/properties/completed-list/");
       return response.data;
     },
   });
@@ -15,12 +15,17 @@ function Home() {
   return (
     <div className="min-h-screen">
       <Hero />
-      
-      {/* Featured Properties Section */}
+
+      {/* Completed Properties Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
-          العقارات المميزة
-        </h2>
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            المشاريع المنجزة
+          </h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            استعرض المشاريع التي تم إنجازها بنجاح من قبل مقاولينا المعتمدين
+          </p>
+        </div>
 
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -33,8 +38,10 @@ function Home() {
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500">
-            لا توجد عقارات متاحة حالياً
+          <div className="text-center py-12">
+            <h3 className="text-lg font-medium text-gray-900">
+              لا توجد مشاريع منجزة حالياً
+            </h3>
           </div>
         )}
       </div>
@@ -42,4 +49,4 @@ function Home() {
   );
 }
 
-export default Home; 
+export default Home;

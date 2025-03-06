@@ -13,6 +13,9 @@ import AdminRequests from './pages/AdminRequests'
 import ContractorProperties from './pages/ContractorProperties'
 import ProtectedRoute from './components/ProtectedRoute'
 import PropertyDetails from './pages/PropertyDetails'
+import ContractorAvailableProperties from './pages/ContractorAvailableProperties'
+import ContractorOffers from './pages/ContractorOffers'
+import HomeownerPendingOffers from './pages/HomeownerPendingOffers'
 
 // Create a client
 const queryClient = new QueryClient()
@@ -42,6 +45,21 @@ function App() {
                 } 
               />
               <Route path="/properties/:id" element={<PropertyDetails />} />
+              <Route path="/contractor/available-properties" element={
+                <ProtectedRoute allowedRoles={['contractor']}>
+                  <ContractorAvailableProperties />
+                </ProtectedRoute>
+              } />
+              <Route path="/contractor/offers" element={
+                <ProtectedRoute allowedRoles={['contractor']}>
+                  <ContractorOffers />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-offers" element={
+                <ProtectedRoute allowedRoles={['user']}>
+                  <HomeownerPendingOffers />
+                </ProtectedRoute>
+              } />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </div>

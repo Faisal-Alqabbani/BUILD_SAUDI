@@ -47,6 +47,8 @@ function CreateProperty() {
     number_of_rooms: "",
     condition: "GOOD",
     images: [],
+    work_areas: [],
+    work_details: "",
   });
 
   const [previewImages, setPreviewImages] = useState([]);
@@ -59,7 +61,14 @@ function CreateProperty() {
 
       // Add all text fields
       Object.keys(data).forEach((key) => {
-        if (key !== "images") {
+        if (key === "images") {
+          // Skip images, handle them separately
+          return;
+        }
+        if (key === "work_areas") {
+          // Convert work_areas array to comma-separated string
+          formData.append("work_areas", data.work_areas.join(","));
+        } else {
           formData.append(key, data[key]);
         }
       });
@@ -79,6 +88,11 @@ function CreateProperty() {
     onSuccess: () => {
       queryClient.invalidateQueries(["properties"]);
       navigate("/properties");
+    },
+    onError: (error) => {
+      // Add error logging to help debug
+      console.error("Error creating property:", error.response?.data);
+      alert("حدث خطأ أثناء إنشاء العقار. يرجى المحاولة مرة أخرى.");
     },
   });
 
@@ -138,7 +152,9 @@ function CreateProperty() {
       !formData.address ||
       !formData.city ||
       !formData.plot_number ||
-      !formData.size
+      !formData.size ||
+      formData.work_areas.length === 0 ||
+      !formData.work_details
     ) {
       alert("Please fill in all required fields");
       return;
@@ -155,6 +171,19 @@ function CreateProperty() {
       latitude: newPosition.lat.toFixed(6),
       longitude: newPosition.lng.toFixed(6),
     }));
+  };
+
+  const handleWorkAreaChange = (area) => {
+    setFormData((prev) => {
+      const updatedAreas = prev.work_areas.includes(area)
+        ? prev.work_areas.filter((a) => a !== area)
+        : [...prev.work_areas, area];
+
+      return {
+        ...prev,
+        work_areas: updatedAreas,
+      };
+    });
   };
 
   return (
@@ -371,6 +400,60 @@ function CreateProperty() {
                 <option value="POOR">سيئة</option>
                 <option value="DILAPIDATED">متهالكة</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                المناطق التي تحتاج إلى صيانة{" "}
+                <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                {[
+                  { id: "kitchen", label: "المطبخ" },
+                  { id: "bathroom", label: "الحمام" },
+                  { id: "bedroom", label: "غرفة النوم" },
+                  { id: "living_room", label: "غرفة المعيشة" },
+                  { id: "full_house", label: "المنزل بالكامل" },
+                  { id: "exterior", label: "الواجهة الخارجية" },
+                  { id: "roof", label: "السقف" },
+                  { id: "plumbing", label: "السباكة" },
+                  { id: "electrical", label: "الكهرباء" },
+                  { id: "other", label: "أخرى" },
+                ].map((area) => (
+                  <div key={area.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`area-${area.id}`}
+                      checked={formData.work_areas.includes(area.id)}
+                      onChange={() => handleWorkAreaChange(area.id)}
+                      className="h-4 w-4 text-[#5454c7] focus:ring-[#5454c7] border-gray-300 rounded"
+                    />
+                    <label
+                      htmlFor={`area-${area.id}`}
+                      className="mr-2 block text-sm text-gray-700"
+                    >
+                      {area.label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                تفاصيل العمل المطلوب (مع القياسات)
+                <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                required
+                rows={4}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-[#5454c7] focus:outline-none focus:ring-1 focus:ring-[#5454c7]"
+                value={formData.work_details}
+                onChange={(e) =>
+                  setFormData({ ...formData, work_details: e.target.value })
+                }
+                placeholder="اكتب تفاصيل الصيانة المطلوبة لكل منطقة"
+              />
             </div>
           </div>
 

@@ -15,7 +15,7 @@ import { IoBedOutline } from "react-icons/io5";
 import { MdOutlineSquareFoot, MdOutlineDirections } from "react-icons/md";
 import { TbBath, TbStairs, TbParking, TbElevator } from "react-icons/tb";
 import { MdOutlineCalendarToday } from "react-icons/md";
-import { FaWhatsapp, FaPhone } from 'react-icons/fa';
+import { FaWhatsapp, FaPhone } from "react-icons/fa";
 import api from "../utils/api";
 import ImageModal from "../components/ImageModal";
 
@@ -24,6 +24,9 @@ function PropertyDetails() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
+  const [selectedCompletionImage, setSelectedCompletionImage] = useState(0);
+  const [isCompletionModalOpen, setIsCompletionModalOpen] = useState(false);
+  const [completionModalIndex, setCompletionModalIndex] = useState(0);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -54,13 +57,48 @@ function PropertyDetails() {
     }
   };
 
+  const getArabicStatus = (status) => {
+    const statusMap = {
+      pending: "قيد المراجعة",
+      approved: "معتمد ومتاح",
+      price_proposed: "تم تقديم عرض سعر",
+      in_progress: "قيد التنفيذ",
+      completed: "تم الإنجاز",
+      rejected: "مرفوض",
+    };
+
+    return statusMap[status] || status;
+  };
+
+  const getStatusBadgeColor = (status) => {
+    switch (status) {
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "approved":
+        return "bg-green-100 text-green-800";
+      case "price_proposed":
+        return "bg-purple-100 text-purple-800";
+      case "in_progress":
+        return "bg-blue-100 text-blue-800";
+      case "completed":
+        return "bg-teal-100 text-teal-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
   const handleGetDirections = () => {
     const destination = `${property.latitude},${property.longitude}`;
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}`, '_blank');
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${destination}`,
+      "_blank"
+    );
   };
 
   const handleWhatsApp = (phone) => {
-    window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+    window.open(`https://wa.me/${phone.replace(/\D/g, "")}`, "_blank");
   };
 
   const handleCall = (phone) => {
@@ -75,13 +113,13 @@ function PropertyDetails() {
   };
 
   const handleNextImage = () => {
-    setModalImageIndex((prev) => 
+    setModalImageIndex((prev) =>
       prev === property.images.length - 1 ? 0 : prev + 1
     );
   };
 
   const handlePrevImage = () => {
-    setModalImageIndex((prev) => 
+    setModalImageIndex((prev) =>
       prev === 0 ? property.images.length - 1 : prev - 1
     );
   };
@@ -89,7 +127,7 @@ function PropertyDetails() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!isModalOpen) return;
-      
+
       switch (e.key) {
         case "ArrowRight":
           handlePrevImage();
@@ -141,17 +179,21 @@ function PropertyDetails() {
           <div className="lg:col-span-2 space-y-6">
             {/* Title Section */}
             <div className="mb-6">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{property.title}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {property.title}
+              </h1>
               <div className="flex items-center text-gray-600">
                 <HiOutlineLocationMarker className="w-5 h-5 ml-2" />
-                <span>{property.city}، {property.address}</span>
+                <span>
+                  {property.city}، {property.address}
+                </span>
               </div>
             </div>
 
             {/* Image Gallery */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               {/* Main Selected Image */}
-              <div 
+              <div
                 className="relative aspect-[16/9] rounded-lg overflow-hidden mb-4 cursor-pointer"
                 onClick={() => handleImageClick(selectedImage)}
               >
@@ -161,6 +203,7 @@ function PropertyDetails() {
                   className="w-full h-full object-cover hover:opacity-90 transition-opacity"
                 />
               </div>
+
               {/* Thumbnails */}
               <div className="grid grid-cols-6 gap-2">
                 {property.images.map((image, index) => (
@@ -185,7 +228,9 @@ function PropertyDetails() {
 
             {/* Property Details */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">تفاصيل العقار</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                تفاصيل العقار
+              </h2>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="text-center p-4 bg-gray-50 rounded-lg">
                   <MdOutlineSquareFoot className="w-6 h-6 text-[#5454c7] mx-auto mb-2" />
@@ -212,11 +257,19 @@ function PropertyDetails() {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <span className={`px-3 py-1 rounded-full text-sm ${getConditionBadgeColor(property.condition)}`}>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm ${getConditionBadgeColor(
+                    property.condition
+                  )}`}
+                >
                   {property.condition_display}
                 </span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                  {property.status_display}
+                <span
+                  className={`px-3 py-1 rounded-full text-sm ${getStatusBadgeColor(
+                    property.status
+                  )}`}
+                >
+                  {getArabicStatus(property.status)}
                 </span>
               </div>
             </div>
@@ -250,8 +303,10 @@ function PropertyDetails() {
           <div className="space-y-6">
             {/* Contact Cards */}
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-6">معلومات التواصل</h2>
-              
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                معلومات التواصل
+              </h2>
+
               {/* Owner Info */}
               <div className="border-b pb-4 mb-4">
                 <div className="flex items-center justify-between mb-4">
@@ -260,7 +315,9 @@ function PropertyDetails() {
                       {property.homeowner.name[0]}
                     </div>
                     <div className="mr-3">
-                      <p className="font-medium text-gray-900">{property.homeowner.name}</p>
+                      <p className="font-medium text-gray-900">
+                        {property.homeowner.name}
+                      </p>
                       <p className="text-sm text-gray-500">المالك</p>
                     </div>
                   </div>
@@ -295,15 +352,18 @@ function PropertyDetails() {
               {property.assigned_contractor && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">المقاول المعتمد</h2>
+                    <h2 className="text-xl font-bold text-gray-900">
+                      المقاول المعتمد
+                    </h2>
                     <span className="text-sm bg-[#5454c7]/10 text-[#5454c7] px-3 py-1 rounded-full">
                       مقيّم معتمد
                     </span>
                   </div>
-                  
+
                   {/* Description */}
                   <p className="text-gray-600 text-sm mb-6">
-                    تم تقييم هذا العقار من قبل مقاول معتمد لدينا. المقاول مسؤول عن تقييم حالة العقار وتقديم تقرير مفصل عن جودته وصلاحيته.
+                    تم تقييم هذا العقار من قبل مقاول معتمد لدينا. المقاول مسؤول
+                    عن تقييم حالة العقار وتقديم تقرير مفصل عن جودته وصلاحيته.
                   </p>
 
                   <div className="border-t pt-4">
@@ -323,14 +383,18 @@ function PropertyDetails() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleWhatsApp(property.assigned_contractor.phone)}
+                          onClick={() =>
+                            handleWhatsApp(property.assigned_contractor.phone)
+                          }
                           className="bg-green-500 text-white p-2 rounded-full hover:bg-green-600 transition-colors"
                           title="تواصل عبر الواتساب"
                         >
                           <FaWhatsapp className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleCall(property.assigned_contractor.phone)}
+                          onClick={() =>
+                            handleCall(property.assigned_contractor.phone)
+                          }
                           className="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition-colors"
                           title="اتصل بالمقاول"
                         >
@@ -349,7 +413,10 @@ function PropertyDetails() {
                       </div>
                       <div className="flex items-center text-gray-600">
                         <HiOutlineClock className="w-4 h-4 ml-2" />
-                        <span>{property.assigned_contractor.experience_years} سنوات خبرة</span>
+                        <span>
+                          {property.assigned_contractor.experience_years} سنوات
+                          خبرة
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -360,7 +427,9 @@ function PropertyDetails() {
             {/* Evaluation Report */}
             {property.evaluation_report && (
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">تقرير التقييم</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  تقرير التقييم
+                </h2>
                 {property.rating && (
                   <div className="flex items-center mb-4">
                     <div className="flex">
@@ -391,7 +460,93 @@ function PropertyDetails() {
         </div>
       </div>
 
-      {/* Image Modal */}
+      {/* Completion Images Section */}
+      {property.status === "completed" &&
+        property.completion_images?.length > 0 && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="p-6 border-b">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  صور إنجاز العمل
+                </h2>
+                <p className="mt-1 text-gray-600">
+                  الصور المرفقة بعد إكمال العمل من قبل المقاول
+                </p>
+              </div>
+
+              <div className="p-6">
+                {property.completion_note && (
+                  <div className="mb-6 bg-gray-50 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      ملاحظات الإنجاز
+                    </h3>
+                    <p className="text-gray-700">{property.completion_note}</p>
+                  </div>
+                )}
+
+                {/* Main Selected Completion Image */}
+                <div
+                  className="relative aspect-[16/9] rounded-lg overflow-hidden mb-4 cursor-pointer"
+                  onClick={() => {
+                    setCompletionModalIndex(selectedCompletionImage);
+                    setIsCompletionModalOpen(true);
+                  }}
+                >
+                  <img
+                    src={
+                      property.completion_images[selectedCompletionImage]?.image
+                    }
+                    alt="صورة الإنجاز"
+                    className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                  />
+
+                  {/* Description overlay inside the image */}
+                  {property.completion_images[selectedCompletionImage]
+                    ?.description && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-3 backdrop-blur-sm">
+                      <p className="text-sm">
+                        {
+                          property.completion_images[selectedCompletionImage]
+                            .description
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Completion Images Thumbnails */}
+                <div className="grid grid-cols-6 gap-2">
+                  {property.completion_images.map((image, index) => (
+                    <button
+                      key={image.id}
+                      onClick={() => setSelectedCompletionImage(index)}
+                      className={`relative aspect-square rounded-lg overflow-hidden ${
+                        selectedCompletionImage === index
+                          ? "ring-2 ring-[#5454c7]"
+                          : "ring-1 ring-gray-200 hover:ring-[#5454c7]/50"
+                      }`}
+                    >
+                      <img
+                        src={image.image}
+                        alt={`صورة الإنجاز ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 text-sm text-gray-500">
+                  تم إكمال العمل في{" "}
+                  {new Date(property.completion_date).toLocaleDateString(
+                    "ar-SA"
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Original Image Modal */}
       {isModalOpen && (
         <ImageModal
           images={property.images}
@@ -399,6 +554,25 @@ function PropertyDetails() {
           onClose={() => setIsModalOpen(false)}
           onNext={handleNextImage}
           onPrev={handlePrevImage}
+        />
+      )}
+
+      {/* Completion Images Modal */}
+      {isCompletionModalOpen && (
+        <ImageModal
+          images={property.completion_images}
+          currentIndex={completionModalIndex}
+          onClose={() => setIsCompletionModalOpen(false)}
+          onNext={() =>
+            setCompletionModalIndex((prev) =>
+              prev === property.completion_images.length - 1 ? 0 : prev + 1
+            )
+          }
+          onPrev={() =>
+            setCompletionModalIndex((prev) =>
+              prev === 0 ? property.completion_images.length - 1 : prev - 1
+            )
+          }
         />
       )}
     </div>

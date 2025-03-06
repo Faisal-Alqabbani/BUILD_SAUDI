@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
+from multiselectfield import MultiSelectField
 
 # Create your models here.
 
@@ -58,12 +59,27 @@ class Property(models.Model):
     ]
 
     STATUS_CHOICES = (
-        ('pending', 'Pending Approval'),
+        ('pending', 'Pending Admin Review'),
+        ('approved', 'Approved & Available'),
+        ('price_proposed', 'Price Proposed'),
+        ('in_progress', 'Work In Progress'),
+        ('completed', 'Work Completed'),
         ('rejected', 'Rejected'),
-        ('eval_pending', 'Awaiting Evaluation'),
-        ('approved', 'Approved for Listing'),
     )
 
+    WORK_AREA_CHOICES = [
+        ('kitchen', 'مطبخ'),
+        ('bathroom', 'حمام'),
+        ('bedroom', 'غرفة نوم'),
+        ('living_room', 'غرفة معيشة'),
+        ('full_house', 'المنزل بالكامل'),
+        ('exterior', 'خارجي'),
+        ('roof', 'سقف'),
+        ('plumbing', 'سباكة'),
+        ('electrical', 'كهرباء'),
+        ('other', 'أخرى')
+    ]
+    
     homeowner = models.ForeignKey('CustomUser', on_delete=models.CASCADE, related_name='properties')
     title = models.CharField(max_length=200)
     description = models.TextField()
@@ -105,13 +121,36 @@ class Property(models.Model):
     assigned_contractor = models.ForeignKey(
         'Contractor', 
         null=True, 
+        blank=True,
         on_delete=models.SET_NULL
     )
     evaluation_report = models.TextField(blank=True)
     evaluation_date = models.DateTimeField(null=True)
+    completion_note = models.TextField(blank=True, null=True)
+    completion_date = models.DateTimeField(null=True, blank=True)
+
+    work_areas = MultiSelectField(
+        choices=WORK_AREA_CHOICES,
+        max_choices=10,
+        max_length=100,
+        blank=True,
+        verbose_name="مناطق العمل",
+        help_text="حدد جميع المناطق التي تحتاج إلى عمل"
+    )
+    
+    work_details = models.TextField(
+        blank=True, 
+        null=True,
+        verbose_name="تفاصيل العمل",
+        help_text="قدم وصفاً مفصلاً للعمل المطلوب لكل منطقة"
+    )
 
     def __str__(self):
         return f"{self.title} - {self.city}"
+
+    @property
+    def completion_images_count(self):
+        return self.completion_images.count()
 
 class PropertyImage(models.Model):
     property = models.ForeignKey(Property, related_name='images', on_delete=models.CASCADE)
@@ -140,3 +179,38 @@ class EvaluationRequest(models.Model):
     contractor = models.ForeignKey(Contractor, on_delete=models.CASCADE)
     assigned_date = models.DateTimeField(auto_now_add=True)
     completed = models.BooleanField(default=False)
+
+class PriceOffer(models.Model):
+    property = models.ForeignKey(Property, related_name='price_offers', on_delete=models.CASCADE)
+    contractor = models.ForeignKey(Contractor, related_name='price_offers', on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True)
+    proposed_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(
+        max_length=20,
+        choices=(
+            ('pending', 'Pending'),
+            ('accepted', 'Accepted'),
+            ('rejected', 'Rejected'),
+        ),
+        default='pending'
+    )
+    
+    class Meta:
+        ordering = ['-proposed_at']
+        
+    def __str__(self):
+        return f"Offer for {self.property.title} by {self.contractor.user.first_name}"
+
+class CompletionImage(models.Model):
+    property = models.ForeignKey(
+        Property, 
+        on_delete=models.CASCADE,
+        related_name='completion_images'
+    )
+    image = models.ImageField(upload_to='completion_images/')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
