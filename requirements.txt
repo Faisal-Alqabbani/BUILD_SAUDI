@@ -1,25 +1,38 @@
 # Core Django
-Django==4.2.19
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-
-# Image handling
-Pillow==10.2.0  # For PropertyImage model
+Django>=4.2.0,<5.0.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.0.0
 
 # Authentication
-djangorestframework-authtoken==0.0.1  # For Token authentication we're using
+djangorestframework-simplejwt>=5.2.2
 
-# Development
-django-debug-toolbar==4.3.0  # Optional for development
+# Database (uncomment if using PostgreSQL)
+# psycopg2-binary>=2.9.5
 
-# Environment variables
-python-dotenv==1.0.1
+# Field Types and Validation
+django-multiselectfield>=0.1.12
 
-# WSGI server
-gunicorn==21.2.0
+# Image Processing
+Pillow>=9.4.0
 
-# API documentation (optional)
-drf-yasg==1.21.7
+# Filtering
+django-filter>=23.1
 
-# Security
-django-filter==23.5 
+# Environment Variables
+python-dotenv>=1.0.0
+
+# API Documentation (optional but recommended)
+drf-yasg>=1.21.5
+
+# URL and Link Handling
+django-cleanup>=7.0.0
+
+# Production Dependencies (for deployment)
+gunicorn>=20.1.0
+whitenoise>=6.4.0
+
+# Development Dependencies
+pytest>=7.3.1
+pytest-django>=4.5.2
+black>=23.3.0
+flake8>=6.0.0
